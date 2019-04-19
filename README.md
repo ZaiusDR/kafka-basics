@@ -186,3 +186,190 @@ handle Kafka metadata writes. The other instances are called followers and they 
 * As long as the number of partitions remains constant for a topic, the same key will
   always go to the same partition (Hummm...).
   
+
+## Kafka Services
+
+To start Zookeeper:
+
+```
+zookeper-server-start path_to/zookeeper.properties
+```
+
+By default it listens on port 2181.
+
+Zookeeper data dir is pointing to /tmp/zookeeper by default. Change it!
+
+To start Kafka:
+
+```
+kafka-server-start path_to/server.properties
+```
+
+By default it listens on port 9092.
+
+Kafka logs dir is pointing to /tmp/kafka-logs by default. Change it as well!
+
+
+## Kafka CLI
+
+### kafka-topics command
+
+#### Create a new topic:
+
+```
+kafka-topics --zookeeper 127.0.0.1:2181 --topic sample_topic --create --partitions 3 --replication-factor 1
+```
+
+Zookeeper connection must be indicated.
+
+The replication factor of 1 is not cool, but for now I only have one broker :(
+
+
+#### List topics
+
+```
+kafka-topics --zookeeper 127.0.0.1:2181 --list
+```
+
+
+#### Describe topics
+
+```
+kafka-topics --zookeeper 127.0.0.1:2181 --topic sample_topic --describe
+```
+
+Output:
+
+```
+Topic:sample_topic	PartitionCount:3	ReplicationFactor:1	Configs:
+	Topic: sample_topic	Partition: 0	Leader: 0	Replicas: 0	Isr: 0
+	Topic: sample_topic	Partition: 1	Leader: 0	Replicas: 0	Isr: 0
+	Topic: sample_topic	Partition: 2	Leader: 0	Replicas: 0	Isr: 0
+```
+
+
+#### Delete topics
+
+```
+kafka-topics --zookeeper 127.0.0.1:2181 --topic sample_topic --delete
+```
+
+### kafka-console-producer command
+
+#### Produce to a topic
+
+```
+kafka-console-producer --broker-list localhost:9092 --topic sample_topic
+```
+
+You will be prompted with a `>` sign. Then you can start to produce messages:
+
+```
+>This is a cool message
+>This is another one
+>Best message ever
+```
+
+#### Setting ad-hoc properties
+
+```
+kafka-console-producer --broker-list localhost:9092 --topic sample_topic --producer-properties acks=all
+```
+
+If you produce to a non-existing topic, it will be created with the default values. Usually with 1 partition
+and 1 replication factor. That is not good. If you want to change the defaults, this can be done in
+`server.properties` file.
+
+
+### kafka-console-consumer command
+
+
+#### Consuming messages
+
+```
+kafka-console-consumer --bootstrap-server localhost:9092 --topic sample_topic
+```
+
+Nothing is shown at first, since the consumer will only read the messages in topic. To see something
+it's necessary to produce messages while the consumer is active.
+
+To show all messages:
+
+```
+kafka-console-consumer --bootstrap-server localhost:9092 --topic sample_topic --from-beginning
+```
+
+#### Consume in a group
+
+Set the `--group` parameter with any string as the group name
+
+```
+kafka-console-consumer --bootstrap-server localhost:9092 --topic sample_topic --group my-app
+```
+
+You can start more consumers in the same group, they will consume from a fixed partition. If one consumer
+goes down, the partitions are reassigned.
+
+Take into account that when you consume as a group, the offset is committed. So even using `from-beginning`
+option, previous messages won't be consumed again. Only new ones will be.
+
+
+### kafka-consumer-groups command
+
+#### List groups
+
+```
+kafka-consumer-groups --bootstrap-server localhost:9092 --list
+```
+
+#### Describe a group
+
+```
+kafka-consumer-groups --bootstrap-server localhost:9092 --describe --group my-app
+```
+
+Output:
+
+```
+Consumer group 'my-app' has no active members.
+
+TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+sample_topic    1          3               3               0               -               -               -
+sample_topic    0          2               2               0               -               -               -
+sample_topic    2          2               2               0               -               -               -
+```
+
+Lag 0 means all messages has been consumed in a partition.
+
+
+#### Resetting offsets for a group
+
+```
+kafka-consumer-groups.sh --bootstrap-server localhost:9092 --reset-offsets --to-earliest --execute --group my-app --topic sample_topic
+```
+
+Resets offsets for group `my-app` for the topic `sample_topic`
+
+A describe now shows the `LAG` to the total messages on each partition
+
+```
+Consumer group 'my-app' has no active members.
+
+TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID     HOST            CLIENT-ID
+sample_topic    1          0               3               3               -               -               -
+sample_topic    0          0               2               2               -               -               -
+sample_topic    2          0               2               2               -               -               -
+```
+
+To reset to, say 3 previous messages use the `--shift-by -3` option.
+
+
+### Alternatives to CLI
+
+#### Kafka Tool (GUI)
+
+http://www.kafkatool.com/features.html
+
+#### KafkaCat (curated CLI commands)
+
+https://github.com/edenhill/kafkacat
