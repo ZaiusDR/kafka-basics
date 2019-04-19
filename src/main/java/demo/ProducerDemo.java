@@ -1,12 +1,15 @@
 package demo;
 
-import org.apache.kafka.clients.admin.*;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
 import java.util.Properties;
 
 import static java.util.Collections.singletonList;
@@ -20,6 +23,9 @@ public class ProducerDemo {
     private static final short REPLICATION_FACTOR = 1;
 
     public static void main(String[] args) {
+
+        Logger logger = LoggerFactory.getLogger(ProducerDemo.class);
+
         // Create the topic
         NewTopic topic = new NewTopic(TOPIC_NAME, TOPIC_PARTITIONS, REPLICATION_FACTOR);
 
@@ -39,7 +45,17 @@ public class ProducerDemo {
         ProducerRecord<String, String> producerRecord =
                 new ProducerRecord<>(TOPIC_NAME, "Hello World!");
 
-        producer.send(producerRecord);
+        producer.send(producerRecord, (metadata, exception) -> {
+            if (exception == null) {
+                logger.info("Received new metadata. \n" +
+                            "Topic: " + metadata.topic() + "\n" +
+                            "Partition: " + metadata.partition() + "\n" +
+                            "Offset: " + metadata.offset() + "\n" +
+                            "Timestamp: " + metadata.timestamp());
+            } else {
+                logger.error("Error while producing message", exception);
+            }
+        });
 
         producer.flush();
 
