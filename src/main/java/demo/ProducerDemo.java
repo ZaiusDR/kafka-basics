@@ -42,20 +42,27 @@ public class ProducerDemo {
 
         KafkaProducer<String, String> producer = new KafkaProducer<>(properties);
 
-        ProducerRecord<String, String> producerRecord =
-                new ProducerRecord<>(TOPIC_NAME, "Hello World!");
+        for (int i=0; i < 10; i++) {
+            String value = "Hello World! " + i;
+            String key = "id_" + i;
 
-        producer.send(producerRecord, (metadata, exception) -> {
-            if (exception == null) {
-                logger.info("Received new metadata. \n" +
+            ProducerRecord<String, String> producerRecord =
+                    new ProducerRecord<>(TOPIC_NAME, key, value);
+
+            producer.send(producerRecord, (metadata, exception) -> {
+                if (exception == null) {
+                    logger.info("Received new metadata. \n" +
                             "Topic: " + metadata.topic() + "\n" +
                             "Partition: " + metadata.partition() + "\n" +
                             "Offset: " + metadata.offset() + "\n" +
-                            "Timestamp: " + metadata.timestamp());
-            } else {
-                logger.error("Error while producing message", exception);
-            }
-        });
+                            "Timestamp: " + metadata.timestamp() + "\n" +
+                            "Key: " + key);
+                } else {
+                    logger.error("Error while producing message", exception);
+                }
+            });
+
+        }
 
         producer.flush();
 
