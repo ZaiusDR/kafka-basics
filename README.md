@@ -366,10 +366,59 @@ To reset to, say 3 previous messages use the `--shift-by -3` option.
 
 ### Alternatives to CLI
 
+
 #### Kafka Tool (GUI)
 
 http://www.kafkatool.com/features.html
 
+
 #### KafkaCat (curated CLI commands)
 
 https://github.com/edenhill/kafkacat
+
+## Setting Java Project
+
+
+### Kafka dependencies
+
+Kafka client:
+
+https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients
+
+
+### Creating a topic
+
+```
+NewTopic topic = new NewTopic(TOPIC_NAME, TOPIC_PARTITIONS, REPLICATION_FACTOR);
+
+Properties adminProperties = new Properties();
+adminProperties.setProperty(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+
+AdminClient.create(adminProperties).createTopics(singletonList(topic));
+```
+
+### Setting-up a producer
+
+```
+Properties properties = new Properties();
+properties.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+properties.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+properties.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+
+KafkaProducer<String, String> producer = new KafkaProducer<>(properties);
+```
+
+### Sending a message
+
+```
+ProducerRecord<String, String> producerRecord =
+                new ProducerRecord<>(TOPIC_NAME, "Hello World!");
+
+producer.send(producerRecord);
+producer.flush();
+producer.close();
+```
+
+Take into account that `send` is async. That's why in the code there is the `flush` method call.
+
+Also, to be a good citizen, `close` the producer at the end :) 
