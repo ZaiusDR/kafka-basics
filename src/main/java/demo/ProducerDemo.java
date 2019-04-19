@@ -12,19 +12,14 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Properties;
 
+import static demo.Constants.*;
 import static java.util.Collections.singletonList;
 
 public class ProducerDemo {
 
-    private static final String BOOTSTRAP_SERVERS = "localhost:9092";
-
-    private static final String TOPIC_NAME = "sample_topic";
-    private static final int TOPIC_PARTITIONS = 3;
-    private static final short REPLICATION_FACTOR = 1;
-
     public static void main(String[] args) {
 
-        Logger logger = LoggerFactory.getLogger(ProducerDemo.class);
+        Logger logger = LoggerFactory.getLogger(ProducerDemo.class.getName());
 
         // Create the topic
         NewTopic topic = new NewTopic(TOPIC_NAME, TOPIC_PARTITIONS, REPLICATION_FACTOR);

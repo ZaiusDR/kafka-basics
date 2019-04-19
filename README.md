@@ -422,3 +422,29 @@ producer.close();
 Take into account that `send` is async. That's why in the code there is the `flush` method call.
 
 Also, to be a good citizen, `close` the producer at the end :) 
+
+
+### Setting-up a consumer
+
+```
+Properties properties = new Properties();
+properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+properties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+properties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
+properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, OFFSET_RESET);
+
+KafkaConsumer<String, String> consumer = new KafkaConsumer<>(properties);
+```
+
+
+### Polling messages
+
+```
+ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+
+for (ConsumerRecord<String, String> record: records) {
+    logger.info("Key: " + record.key() + ", Value: " + record.value());
+    logger.info("Partition: " + record.partition() + ", Offset: " + record.offset());
+}
+```
