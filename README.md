@@ -448,3 +448,35 @@ for (ConsumerRecord<String, String> record: records) {
     logger.info("Partition: " + record.partition() + ", Offset: " + record.offset());
 }
 ```
+
+### Assign and Seek
+
+This are different APIs, used mostly to replay data or fetch a specific message.
+
+For Assign:
+
+We won't need a Consumer Group for this, just `assign` the Consumer to a Topic and Partition Number.
+
+```
+TopicPartition partition = new TopicPartition(TOPIC_NAME, 0);
+
+consumer.assign(singletonList(partition));
+```
+
+This way we assign the consumer to a specific partition in a specific topic.
+
+For Seek:
+
+```
+long offset = 1;
+
+consumer.seek(partition, offset);
+```
+
+This way we indicate the consumer to look for the message with offset 1 in the specified partition.
+
+
+## Kafka Bi-Directional Compatibility
+
+Since 2017 Kafka client and brokers are fully compatible with every version. This is that client
+can be older than brokers, and vice versa. So! Use the newest versions available always!
