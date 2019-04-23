@@ -480,3 +480,74 @@ This way we indicate the consumer to look for the message with offset 1 in the s
 
 Since 2017 Kafka client and brokers are fully compatible with every version. This is that client
 can be older than brokers, and vice versa. So! Use the newest versions available always!
+
+## Producer and Consumer Tweaking
+
+### Producer
+
+#### Acks
+
+As commented before.
+
+When using `acks=all` the recommended setting is to set `min.insync.replicas=2`. That is at least 2 brokers
+that are ISR must response that they have the data. If there are less than the minimum indicated in the
+`min.insync.replicas` parameter, the leader will response with an error about not having enough replicas. The producer
+will retry until there are enough replicas.
+
+
+#### Producer retries
+
+Usually developers must lead with exceptions on callback functions. But there is the `retries` option to handle
+that for them. The default value is 0. There is a chance of messages will be sent out of order. So if you
+are relying in key-based ordering, that can be an important issue.
+
+To control this, there is the `max.in.flight.requests.per.connection` (default 5). It's possible to setup
+it to 1, solving the ordering issue, but take into account that this may impact throughput!!
+
+
+#### Idempotent Producer (For previous issue)
+
+There is a better solution for the previous issue!!
+
+It can happen that the Producer sends a message to Kafka, and is correctly received, but the Ack never
+reach the Producer, so it retries sending the message, which will be stored again. Idempotent Producers take
+care of this. They come with `retries=Integer.MAX_VALUE`, `max.in.flight.requests=1` or `5` (depending on how
+recent is the Kafka version), `acks=all`. To configure them just use `producerProps.put("enable.idempotence", true);`.
+
+So for configuring a safe ordering and replication producer (bit of loss in performance):
+
+```
+properties.setProperty(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
+properties.setProperty(ProducerConfig.ACKS_CONFIG, "all");
+properties.setProperty(ProducerConfig.RETRIES_CONFIG, Integer.toString(Integer.MAX_VALUE));
+properties.setProperty(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "5");
+```
+
+#### Message Compression
+
+Usually messages are text-based, like JSON and so on. It's important to set compression (default `none`in the producer. This
+is for free, it does not require any additional config in the Brokers nor the Consumers :)
+
+The compression is more effective for bigger batches of messages sent. Since the size is not only decrease
+while sending from Producer to Kafka, but when sending to replicas as well, you get a nice improvement in performance.
+
+
+#### Batches
+
+Kafka usually send parallel messages. If the max number of parallel requests is reached, it starts batching
+the pending ones to improve performance.
+
+This is configurable using the option `linger.ms` (default 0), which is the number of ms a producer will wait until
+sending a batch. Raising this value increase the chances of the messages to be batched. This combined with
+compression can produce a better performance. There is also the `batch.size` (default 16Kb but can be safely
+increased to 32Kb or 64Kb), if the limit of this size is reached, the batch will be sent right away, 
+so there is no problem raising the linger a little bit.
+
+
+#### High throughput Producer
+
+```
+properties.setProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
+properties.setProperty(ProducerConfig.LINGER_MS_CONFIG, "20"); // ms
+properties.setProperty(ProducerConfig.BATCH_SIZE_CONFIG, Integer.toString(32*1024)); // Kb
+```

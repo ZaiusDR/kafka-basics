@@ -27,7 +27,7 @@ class TwitterAPIStreamClient {
 
         StatusesFilterEndpoint endpoint = new StatusesFilterEndpoint();
         endpoint.stallWarnings(false);
-        endpoint.trackTerms(singletonList("#FelizLunes"));
+        endpoint.trackTerms(singletonList("bitcoin"));
 
         Authentication auth = new OAuth1(
                 twitterAuth.getConsumerKey(),

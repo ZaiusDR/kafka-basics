@@ -22,3 +22,20 @@ services:
     container_name: kibana
     ports:
       - "5601:5601"
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ${PWD}/docker/docker_files/prometheus.yml:/etc/prometheus/prometheus.yml
+  prometheus_pushgateway:
+    image: prom/pushgateway
+    container_name: pushgateway
+    ports:
+      - "9091:9091"
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
