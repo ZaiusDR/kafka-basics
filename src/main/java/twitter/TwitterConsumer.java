@@ -1,5 +1,6 @@
 package twitter;
 
+import com.google.gson.JsonParser;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -45,15 +46,14 @@ class TwitterConsumer implements Runnable {
     public void run() {
         consumer.subscribe(singletonList(TOPIC_NAME));
 
-        int messageNumber = 1;
         try {
             while (true) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
 
                 for (ConsumerRecord<String, String> record : records) {
-                    logger.info("Consuming message: {}", record.toString());
-                    elasticSearchClient.indexMessage(record.value(), Integer.toString(messageNumber));
-                    messageNumber += 1;
+                    String id = extractIdFromTweet(record.value());
+                    logger.info("Consuming message with Id {}: {}", id, record.toString());
+                    elasticSearchClient.indexMessage(record.value(), id);
                 }
             }
         } catch (WakeupException e) {
@@ -62,6 +62,14 @@ class TwitterConsumer implements Runnable {
             consumer.close();
             latch.countDown();
         }
+    }
+
+    private String extractIdFromTweet(String tweet) {
+        JsonParser jsonParser = new JsonParser();
+        return jsonParser.parse(tweet)
+                .getAsJsonObject()
+                .get("id_str")
+                .getAsString();
     }
 
     void shutDown() {

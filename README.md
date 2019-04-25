@@ -551,3 +551,43 @@ properties.setProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
 properties.setProperty(ProducerConfig.LINGER_MS_CONFIG, "20"); // ms
 properties.setProperty(ProducerConfig.BATCH_SIZE_CONFIG, Integer.toString(32*1024)); // Kb
 ```
+
+### Consumer
+
+#### Delivery Semantics
+
+* __At most once:__ The consumer commits will be done before processing messages. This means that the consumer
+reads a batch of messages and then tries to process them. If an error occur during processing, the consumer
+will resume from the last commit point, and will leave some messages without processing. 
+
+* __At least once:__ (This is the default) The consumer commits will be done after processing the messages. Same as above.
+If there is any problem, some messages will be consumed twice.
+
+* __Exactly once:__ This is done from Kafka to Kafka only.
+
+Most applications should use __At least once__ and ensure that transformations/processing is idempotent.
+
+To do it, there are usually two approaches:
+ 
+- Identify the messages with a "Kafka Generic ID", such as:
+```
+String id = record.topic() + "_" + record.partition() + "_" + record.offset();
+```
+
+- Use an Id which comes inside the message (I.e: In this app, the id of the tweet `id_str`):
+
+```
+{
+  ...
+  ...
+  "_score": 0,
+  "_source": {
+    "created_at": "Thu Apr 25 05:42:14 +0000 2019",
+    "id": 1121288284985004000,
+    "id_str": "1121288284985004032",
+    "text": "Ethereum Price (ETH) Remains In Strong Downtrend Versus Bitcoin (BTC)",
+    ...
+    ...
+```
+
+Remember that this depends on the type of processing done.
