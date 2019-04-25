@@ -1,10 +1,11 @@
 package twitter.elasticsearch;
 
 import org.apache.http.HttpHost;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.action.index.IndexRequestBuilder;
-import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.ElasticsearchClient;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
@@ -17,6 +18,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ElasticSearchClient {
 
@@ -59,12 +62,12 @@ public class ElasticSearchClient {
         }
     }
 
-    public void indexMessage(String message, String id) {
-        ActionListener<IndexResponse> listener =
-                new ActionListener<IndexResponse>() {
+    public void indexMessages(HashMap<String, ConsumerRecord<String, String>> messages) {
+        ActionListener<BulkResponse> listener =
+                new ActionListener<BulkResponse>() {
                     @Override
-                    public void onResponse(IndexResponse indexResponse) {
-                        logger.info("Successfully created indexed message: {}", indexResponse);
+                    public void onResponse(BulkResponse bulkResponse) {
+                        logger.info("Successfully indexed messages.");
                     }
 
                     @Override
@@ -73,7 +76,15 @@ public class ElasticSearchClient {
                     }
                 };
 
-        IndexRequest request = new IndexRequest(INDEX_NAME).id(id).source(message, XContentType.JSON);
-        client.indexAsync(request, RequestOptions.DEFAULT, listener);
+        BulkRequest bulkRequest = new BulkRequest();
+
+        for (Map.Entry<String, ConsumerRecord<String, String>> stringConsumerRecordEntry : messages.entrySet()) {
+            IndexRequest request = new IndexRequest(INDEX_NAME)
+                    .id((String) ((Map.Entry) stringConsumerRecordEntry).getKey())
+                    .source(((Map.Entry) stringConsumerRecordEntry).getValue(), XContentType.JSON);
+            bulkRequest.add(request);
+        }
+
+        client.bulkAsync(bulkRequest, RequestOptions.DEFAULT, listener);
     }
 }

@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import twitter.elasticsearch.ElasticSearchClient;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 
@@ -53,11 +54,18 @@ class TwitterConsumer implements Runnable {
 
                 if (records.count() > 0) {
                     logger.info("Received Records: {}", records.count());
-                }
-                for (ConsumerRecord<String, String> record : records) {
-                    String id = extractIdFromTweet(record.value());
-                    logger.info("Consuming message with Id {}: {}", id, record.toString());
-                    elasticSearchClient.indexMessage(record.value(), id);
+
+                    HashMap<String, ConsumerRecord<String, String>> messages = new HashMap<>();
+                    for (ConsumerRecord<String, String> record : records) {
+                        String id = extractIdFromTweet(record.value());
+                        logger.info("Consuming message with Id {}: {}", id, record.toString());
+                        messages.put(id, record);
+
+                        elasticSearchClient.indexMessages(messages);
+                    }
+                    logger.info("Committing offsets.");
+                    consumer.commitSync();
+                    logger.info("Offsets committed.");
                 }
             }
         } catch (WakeupException e) {
@@ -66,9 +74,6 @@ class TwitterConsumer implements Runnable {
             consumer.close();
             latch.countDown();
         }
-        logger.info("Committing offsets.");
-        consumer.commitSync();
-        logger.info("Offsets committed.");
     }
 
     private String extractIdFromTweet(String tweet) {

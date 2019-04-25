@@ -619,3 +619,9 @@ while(true) {
 ```
 
 You can control when you commit offsets and what's the condition for committing them.
+
+
+#### Bulk Processing
+
+That's it, just create a batch of messages and bulk insert them for instance in Elasticsearch, then
+commit the offsets accordingly.
