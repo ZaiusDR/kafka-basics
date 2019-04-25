@@ -591,3 +591,31 @@ String id = record.topic() + "_" + record.partition() + "_" + record.offset();
 ```
 
 Remember that this depends on the type of processing done.
+
+#### Commit Strategies
+
+The main ones are:
+
+* (easy) `enable.auto.commit=true`: (Default) It's synchronous processing of batches.
+```
+while(true) {
+    List<Records> batch = consumer.poll(Duration.ofMillis(100));
+    doSomethingSynchronous(batch);
+}
+```
+
+With auto-commit, commits will be done after `auto.commit.interval.ms=5000` (5s) by default, after
+calling `.poll()`. So if you don't do it synchronously, you end up with __At most once__!! (Which is not recommended). 
+
+* (medium) `enable.auto.commit=false`: Manual commit of offsets.
+```
+while(true) {
+    batch += consumer.poll(Duration.ofMillis(100));
+    if isReady(batch) {
+        doSomethingSynchronus(batch);
+        consumer.commitSync();
+    }
+}
+```
+
+You can control when you commit offsets and what's the condition for committing them.

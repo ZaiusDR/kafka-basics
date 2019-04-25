@@ -40,6 +40,7 @@ class TwitterConsumer implements Runnable {
         properties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
         properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, OFFSET_RESET);
+        properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
         this.consumer = new KafkaConsumer<>(properties);
     }
 
@@ -50,6 +51,9 @@ class TwitterConsumer implements Runnable {
             while (true) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
 
+                if (records.count() > 0) {
+                    logger.info("Received Records: {}", records.count());
+                }
                 for (ConsumerRecord<String, String> record : records) {
                     String id = extractIdFromTweet(record.value());
                     logger.info("Consuming message with Id {}: {}", id, record.toString());
@@ -62,6 +66,9 @@ class TwitterConsumer implements Runnable {
             consumer.close();
             latch.countDown();
         }
+        logger.info("Committing offsets.");
+        consumer.commitSync();
+        logger.info("Offsets committed.");
     }
 
     private String extractIdFromTweet(String tweet) {
