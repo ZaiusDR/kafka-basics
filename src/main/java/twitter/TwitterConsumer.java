@@ -51,7 +51,7 @@ class TwitterConsumer implements Runnable {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
 
                 for (ConsumerRecord<String, String> record : records) {
-                    logger.info("Consuming message: ", record.value());
+                    logger.info("Consuming message: {}", record.toString());
                     elasticSearchClient.indexMessage(record.value(), Integer.toString(messageNumber));
                     messageNumber += 1;
                 }

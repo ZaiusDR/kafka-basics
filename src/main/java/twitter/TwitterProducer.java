@@ -32,6 +32,7 @@ class TwitterProducer implements Runnable{
     // Metrics
     // CollectorRegistry registry = new CollectorRegistry();
     PushGateway pushGateway = new PushGateway("localhost:9091");
+    CollectorRegistry registry = new CollectorRegistry();
     static final Counter messages = Counter.build()
             .name("messages_total").help("Total produced messages.").register();
     static final Summary messageBytes = Summary.build()
@@ -72,6 +73,7 @@ class TwitterProducer implements Runnable{
 
         try {
             for (int msgRead = 0; msgRead < 10000; msgRead++) {
+                Summary.Timer messageTimer = messageLatency.startTimer();
                 messages.inc();
                 if (twitterAPIStreamClient.getClient().isDone()) {
                     System.out.println("Client connection closed unexpectedly: " + twitterAPIStreamClient.getClient().getExitEvent().getMessage());
@@ -80,7 +82,6 @@ class TwitterProducer implements Runnable{
 
                 String msg = twitterAPIStreamClient.getMsgQueue().poll(5, TimeUnit.SECONDS);
 
-
                 if (msg == null) {
                     System.out.println("Did not receive a message in 5 seconds");
                 } else {
@@ -88,9 +89,13 @@ class TwitterProducer implements Runnable{
                     ProducerRecord<String, String> producerRecord = new ProducerRecord<>(TOPIC_NAME, msg);
 
                     producer.send(producerRecord);
+
+                    messageBytes.observe(msg.getBytes().length);
+                    messageTimer.observeDuration();
                     try {
-                        logger.error("Pushing data to PushGateway {}", msg);
                         pushGateway.push(messages, "messages");
+                        pushGateway.push(messageBytes, "message_bytes");
+                        pushGateway.push(messageLatency, "message_latency");
                     } catch(IOException e) {
                         logger.error("Error sending data to PushGateway {}", e);
                     }
