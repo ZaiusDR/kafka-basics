@@ -625,3 +625,28 @@ You can control when you commit offsets and what's the condition for committing 
 
 That's it, just create a batch of messages and bulk insert them for instance in Elasticsearch, then
 commit the offsets accordingly.
+
+
+#### Consumer Offset Reset Behavior
+
+* `auto.offset.reset=latest`: will read from the end of the log
+* `auto.offset.reset=earliest`: will read from the start of the log
+* `auto.offset.reset=none`: will throw exception if no offset is found
+
+Also, the offset retention is 7 days. This can be controlled by `offset.retention.minutes`.
+
+It's possible to reset the offset so consumers __replay__ the entire log. There is no problem when
+consumer is idempotent.
+
+
+#### Consumer Liveliness
+
+Consumers in a group, talk to a Consumers Group Coordinator (One of the brokers). There is a heartbeat 
+(`heartbeat.interval.ms` default 3 seconds) system to detect consumers 
+down (`session.timeout.ms` default 10 seconds). Is good for Kafka that consumers process data fast 
+and poll often.
+
+There is an additional setting `max.poll.interval.ms` (default 5 minutes), which is the time between polls
+in order to declare the consumer dead.
+
+If something goes wrong, Kafka re-balances the Consumers!
