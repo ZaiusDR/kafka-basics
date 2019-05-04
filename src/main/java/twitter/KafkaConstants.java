@@ -10,4 +10,8 @@ public class KafkaConstants {
 
     static final String GROUP_ID = "twitter-app";
     static final String OFFSET_RESET = "earliest";
+
+    // Streams
+    static final String APP_ID = "twitter-app-streams";
+    static final String IMPORTANT_TWEETS_TOPIC = "important_tweets";
 }

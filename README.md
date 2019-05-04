@@ -650,3 +650,215 @@ There is an additional setting `max.poll.interval.ms` (default 5 minutes), which
 in order to declare the consumer dead.
 
 If something goes wrong, Kafka re-balances the Consumers!
+
+## Kafka Connect
+
+It's a Kafka Service capable of producing and consuming from/to a lot of usual data sources/storage. It
+can be configured in clusters. It does not require any code!! :)
+
+The information can be modified during the process by apps. That's it that Kafka takes care of producing
+messages from a typical source (say twitter), then is possible to do something with that info, and
+return it to Kafka again with Kafka Streams. Then Kafka will take care of storing it in a typical data storage.
+
+
+## Kafka Stream
+
+Easy data processing and transformation library. A sample could be:
+
+```
+public class TwitterStreamsDemoApp {
+
+    public static void main(String[] args) {
+        Properties properties = new Properties();
+
+        properties.setProperty(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, BOOTSTRAP_SERVERS);
+        properties.setProperty(StreamsConfig.APPLICATION_ID_CONFIG, APP_ID);
+        properties.setProperty(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.StringSerde.class.getName());
+        properties.setProperty(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.StringSerde.class.getName());
+
+        // Create Topology
+        StreamsBuilder streamsBuilder = new StreamsBuilder();
+
+        // Input Topic
+        KStream<String, String> inputTopic = streamsBuilder.stream(TOPIC_NAME);
+        KStream<String, String> filteredStream = inputTopic.filter(
+                (k, jsonTweet) -> extractUserFollowers(jsonTweet) > 10000
+        );
+        filteredStream.to(IMPORTANT_TWEETS_TOPIC);
+
+        // Create topology
+        KafkaStreams  kafkaStreams = new KafkaStreams(streamsBuilder.build(), properties);
+
+        // Start our streams application
+        kafkaStreams.start();
+
+    }
+
+    private static Integer extractUserFollowers(String tweet) {
+        JsonParser jsonParser = new JsonParser();
+        return jsonParser.parse(tweet)
+                .getAsJsonObject()
+                .get("user")
+                .getAsJsonObject()
+                .get("followers_count")
+                .getAsInt();
+    }
+}
+```
+
+
+## Schema Registry
+
+To avoid the application to break when source information changes, this is where Schema Registry comes into
+play.
+
+
+## Choosing Partition Count & Replication
+
+Rules of thumb:
+
+Partitions per topic:
+
+```
+< 6 brokers -> 2 x Number of brokers
+> 12 brokers -> 1 x Number of brokers
+```
+
+Replication factor of 3 (sometimes 4).
+
+A broker should not hold more than 2000 to 4000 partitions (across all brokers).
+
+
+Look at best practices on the internet xD
+
+
+## Kafka Applications In Real-World
+
+The capacity of producing from a source, transform or aggregate information and produce to a new topic is
+quite powerful.
+
+It's nice for CQRS model, in which Queries on the information are decoupled from the information sources.
+
+There are super nice Kafka Connect for watching changes in mainstream databases (CDC - Change data captures).
+
+It's recommended that things that happens and are produced to a topic, are stored as events in the topic:
+
+`Good: User 123 enabled threshold at $1000 at 12pm on July 12th 2018`
+`Not Good: User 123 threshold $1000`
+
+This makes replaying history much easier.
+
+Kafka is a widely used as pattern for Big Data ingestion. It's capable to produce with high throughput,
+while consuming, which has less priority or is not so critical, can be done more slowly. It acts like a huge
+buffer.
+
+
+## Kafka Security
+
+Kafka supports SSL communications. Also authentication and authorization.
+
+
+## Kafka Topic advanced configuration
+
+### kafka-configs command
+
+
+When describing a newly created topic:
+
+```
+# kafka-topics --zookeeper localhost:2181 --describe --topic configured-topic
+Topic:configured-topic	PartitionCount:3	ReplicationFactor:1	Configs:
+	Topic: configured-topic	Partition: 0	Leader: 0	Replicas: 0	Isr: 0
+	Topic: configured-topic	Partition: 1	Leader: 0	Replicas: 0	Isr: 0
+	Topic: configured-topic	Partition: 2	Leader: 0	Replicas: 0	Isr: 0
+```
+
+There is no `Configs:` available
+
+To add configs, there is the `kafka-configs` command available.
+
+To see the configs:
+
+```
+# kafka-configs --zookeeper localhost:2181 --entity-type topics --entity-name configured-topic --describe
+Configs for topic 'configured-topic' are
+```
+
+To add configurations:
+
+```
+# kafka-configs --zookeeper localhost:2181 --entity-type topics --entity-name configured-topic --add-config min.insync.replicas=2 --alter
+Completed Updating config for entity: topic 'configured-topic'.
+
+# kafka-configs --zookeeper localhost:2181 --entity-type topics --entity-name configured-topic --describe
+Configs for topic 'configured-topic' are min.insync.replicas=2
+```
+
+To delete configurations:
+
+```
+# kafka-configs --zookeeper localhost:2181 --entity-type topics --entity-name configured-topic --delete-config min.insync.replicas --alter
+Completed Updating config for entity: topic 'configured-topic'.
+```
+
+### Kafka partition segments and indexes
+
+Partitions are made of segments (which are just files). Each segment contains a group of offsets. There is
+only one segment active at a time for a partition to which data is written to.
+
+Segments comes also with two indexes files:
+
+* An offset to position index, which allows kafka to know where to read to find a message.
+* A timestamp to offset index, which allows kafka to find a message by its timestamp.
+
+So Kafka knows how to find messages in __constant time__. All files can be found in the folder where
+data points in Kafka config file.
+
+Depending on the throughput these parameters can be tweaked:
+
+* `log.segment.bytes` - (Default 1Gb) If you have 1Gb a week maybe it's nice to reduce its value. But
+don't reduce to a very small value (such as 1Mb) or Kafka will need to have too many files opened!!
+* `log.segment.ms` - (Default 1 week) How often the log compaction is performed.
+
+
+### Log Cleanup Policies
+
+The default policy is `log.cleanup.policy=delete` which deletes messages after a week and delete based on log
+size, which by default is `-1`, what means infinite.
+
+There is another policy `log.cleanup.policy=compact` which is applied by default for commits topic `__consumer_offsets`
+This policy deletes messages based on the keys of messages. Essentially will delete duplicated keys after
+the active segment is committed.
+
+Messages deletion is aimed to control disk space and delete obsolete data. Also limit maintenance work
+on the Kafka Clusters.
+
+In the case of the partition segments, the smaller/more segments, means that log cleanup will happen more often.
+It's necessary to leverage the use of CPU/RAM. The default is recommended (`log.cleaner.backoff.ms` to 15 secs.)
+
+
+### Log Cleanup Delete
+
+There are two main parameters:
+
+* `log.retention.hours=168` - Default is 1 week (168 hours). Higher values means more disk space.
+* `log.retention.bytes=-1` - `-1` means infinite size.
+
+
+### Log Compaction
+
+Log compaction ensures that your log contains at least the last known value for a specific key within a partition.
+
+It's useful if you only require a __snapshot__ instead of the full history.
+
+
+## Confluent CLI
+
+This is useful for starting a kafka instance for development. You can easily start a Zookeeper and Kafka,
+and some helper services such as `ksql-server`, `kafka-rest`, etc... Once you don't need the instance,
+you can simply run `confluent destroy` and it will cleanup everything that was created (default topics, etc...).
+
+## Docker setup bootstrap
+
+https://github.com/simplesteph/kafka-stack-docker-compose
+
